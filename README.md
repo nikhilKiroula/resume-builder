@@ -50,7 +50,7 @@ A full-stack, AI-powered resume builder built with the **MERN stack**. Create, e
 ## 📁 Project Structure
 
 ```
-Resume Builder by Antigravity/
+Resume Builder/
 ├── client/                     # React frontend (Vite)
 │   └── src/
 │       ├── pages/              # Route-level page components
