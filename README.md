@@ -1,4 +1,4 @@
-# 📄 Resume Builder by Antigravity
+# 📄 Resume Builder
 
 A full-stack, AI-powered resume builder built with the **MERN stack**. Create, edit, and share professional resumes using beautiful templates — with optional AI assistance to enhance your content.
 
