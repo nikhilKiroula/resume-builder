@@ -22,10 +22,11 @@ export const errorHandler = (err, req, res, next) => {
     message = `An account with this ${field} already exists.`;
   }
 
-  // Mongoose bad ObjectId
+  // Mongoose bad ObjectId — 404 for route params, 400 for body field cast errors
   if (err.name === 'CastError') {
-    statusCode = HTTP_STATUS.NOT_FOUND;
-    message = 'Resource not found.';
+    const isRouteParam = err.path === '_id' && !err.reason;
+    statusCode = isRouteParam ? HTTP_STATUS.NOT_FOUND : HTTP_STATUS.BAD_REQUEST;
+    message = isRouteParam ? 'Resource not found.' : `Invalid value for field "${err.path}".`;
   }
 
   // JWT errors (should be caught in middleware, but just in case)

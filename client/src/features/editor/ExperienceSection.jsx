@@ -139,18 +139,19 @@ const ExperienceSection = () => {
   );
 
   const setItems = (newItems) => updateSection('experience', newItems);
-  const addItem = () => setItems([{ ...EMPTY_ITEM, _id: Date.now().toString() }, ...items]);
+  // tempKey used only as React/DnD key — never sent to DB as _id
+  const addItem = () => setItems([{ ...EMPTY_ITEM, tempKey: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}` }, ...items]);
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx, updated) => setItems(items.map((item, i) => (i === idx ? updated : item)));
 
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
-    const oldIdx = items.findIndex((e) => (e._id || e.company + e.position) === active.id);
-    const newIdx = items.findIndex((e) => (e._id || e.company + e.position) === over.id);
+    const oldIdx = items.findIndex((e) => (e._id || e.tempKey || e.company + e.position) === active.id);
+    const newIdx = items.findIndex((e) => (e._id || e.tempKey || e.company + e.position) === over.id);
     setItems(arrayMove(items, oldIdx, newIdx));
   };
 
-  const itemIds = items.map((e, i) => e._id || `exp-${i}`);
+  const itemIds = items.map((e, i) => e._id || e.tempKey || `exp-${i}`);
 
   return (
     <EditorSection title="Experience" icon={Briefcase} badge={items.length || undefined}>
@@ -162,8 +163,8 @@ const ExperienceSection = () => {
           <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
             {items.map((exp, idx) => (
               <SortableItem
-                key={exp._id || `exp-${idx}`}
-                id={exp._id || `exp-${idx}`}
+                key={exp._id || exp.tempKey || `exp-${idx}`}
+                id={exp._id || exp.tempKey || `exp-${idx}`}
                 exp={exp}
                 idx={idx}
                 onUpdate={updateItem}

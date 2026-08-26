@@ -8,7 +8,8 @@ const CertificationsSection = () => {
   const { resumeData, updateSection } = useEditorStore();
   const items = resumeData?.certifications || [];
   const setItems = (v) => updateSection('certifications', v);
-  const addItem = () => setItems([...items, { ...EMPTY, _id: Date.now().toString() }]);
+  // tempKey used only as React key — never sent to DB as _id
+  const addItem = () => setItems([...items, { ...EMPTY, tempKey: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}` }]);
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx, field, val) => setItems(items.map((item, i) => i === idx ? { ...item, [field]: val } : item));
 
@@ -17,7 +18,7 @@ const CertificationsSection = () => {
       <div className="space-y-3">
         <button onClick={addItem} className="btn btn-secondary btn-sm w-full"><Plus className="w-3.5 h-3.5" /> Add Certification</button>
         {items.map((cert, idx) => (
-          <div key={cert._id || idx} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-900 space-y-2">
+          <div key={cert._id || cert.tempKey || idx} className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-900 space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{cert.name || 'New Certification'}</span>
               <button onClick={() => removeItem(idx)} className="btn-ghost p-1 rounded text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>

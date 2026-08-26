@@ -79,16 +79,17 @@ const ProjectsSection = () => {
   const items = resumeData?.projects || [];
   const sensors = useSensors(useSensor(PointerSensor));
   const setItems = (v) => updateSection('projects', v);
-  const addItem = () => setItems([{ ...EMPTY, _id: Date.now().toString() }, ...items]);
+  // tempKey used only as React/DnD key — never sent to DB as _id
+  const addItem = () => setItems([{ ...EMPTY, tempKey: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}` }, ...items]);
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx, updated) => setItems(items.map((item, i) => (i === idx ? updated : item)));
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
-    const oi = items.findIndex((e) => (e._id || e.title) === active.id);
-    const ni = items.findIndex((e) => (e._id || e.title) === over.id);
+    const oi = items.findIndex((e) => (e._id || e.tempKey || e.title) === active.id);
+    const ni = items.findIndex((e) => (e._id || e.tempKey || e.title) === over.id);
     setItems(arrayMove(items, oi, ni));
   };
-  const ids = items.map((e, i) => e._id || `proj-${i}`);
+  const ids = items.map((e, i) => e._id || e.tempKey || `proj-${i}`);
 
   return (
     <EditorSection title="Projects" icon={FolderOpen} badge={items.length || undefined}>
@@ -97,7 +98,7 @@ const ProjectsSection = () => {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             {items.map((proj, idx) => (
-              <SortableItem key={proj._id || `proj-${idx}`} id={proj._id || `proj-${idx}`} proj={proj} idx={idx} onUpdate={updateItem} onRemove={removeItem} />
+              <SortableItem key={proj._id || proj.tempKey || `proj-${idx}`} id={proj._id || proj.tempKey || `proj-${idx}`} proj={proj} idx={idx} onUpdate={updateItem} onRemove={removeItem} />
             ))}
           </SortableContext>
         </DndContext>

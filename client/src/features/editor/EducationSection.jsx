@@ -8,10 +8,14 @@ import { CSS } from '@dnd-kit/utilities';
 
 const EMPTY = { institution: '', degree: '', field: '', startDate: '', endDate: '', grade: '', description: '' };
 
+// Generate a unique temporary key for UI use only (NOT sent to DB as _id)
+const tempKey = () => `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
 const SortableItem = ({ id, edu, idx, onUpdate, onRemove }) => {
   const [expanded, setExpanded] = useState(idx === 0);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+  // Update field but never touch _id or tempKey
   const update = (field, val) => onUpdate(idx, { ...edu, [field]: val });
 
   return (
@@ -75,16 +79,17 @@ const EducationSection = () => {
   const items = resumeData?.education || [];
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const setItems = (v) => updateSection('education', v);
-  const addItem = () => setItems([{ ...EMPTY, _id: Date.now().toString() }, ...items]);
+  // tempKey is used only as a stable React/DnD key — it is never sent to the DB as _id
+  const addItem = () => setItems([{ ...EMPTY, tempKey: tempKey() }, ...items]);
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx, updated) => setItems(items.map((item, i) => (i === idx ? updated : item)));
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
-    const oi = items.findIndex((e) => (e._id || e.institution) === active.id);
-    const ni = items.findIndex((e) => (e._id || e.institution) === over.id);
+    const oi = items.findIndex((e) => (e._id || e.tempKey || e.institution) === active.id);
+    const ni = items.findIndex((e) => (e._id || e.tempKey || e.institution) === over.id);
     setItems(arrayMove(items, oi, ni));
   };
-  const ids = items.map((e, i) => e._id || `edu-${i}`);
+  const ids = items.map((e, i) => e._id || e.tempKey || `edu-${i}`);
 
   return (
     <EditorSection title="Education" icon={GraduationCap} badge={items.length || undefined}>
@@ -93,7 +98,7 @@ const EducationSection = () => {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
             {items.map((edu, idx) => (
-              <SortableItem key={edu._id || `edu-${idx}`} id={edu._id || `edu-${idx}`} edu={edu} idx={idx} onUpdate={updateItem} onRemove={removeItem} />
+              <SortableItem key={edu._id || edu.tempKey || `edu-${idx}`} id={edu._id || edu.tempKey || `edu-${idx}`} edu={edu} idx={idx} onUpdate={updateItem} onRemove={removeItem} />
             ))}
           </SortableContext>
         </DndContext>

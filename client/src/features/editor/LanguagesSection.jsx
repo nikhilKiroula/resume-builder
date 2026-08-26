@@ -8,7 +8,8 @@ const LanguagesSection = () => {
   const { resumeData, updateSection } = useEditorStore();
   const items = resumeData?.languages || [];
   const setItems = (v) => updateSection('languages', v);
-  const addItem = () => setItems([...items, { language: '', proficiency: 'Professional Working', _id: Date.now().toString() }]);
+  // tempKey used only as React key — never sent to DB as _id
+  const addItem = () => setItems([...items, { language: '', proficiency: 'Professional Working', tempKey: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}` }]);
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
   const updateItem = (idx, field, val) => setItems(items.map((item, i) => i === idx ? { ...item, [field]: val } : item));
 
@@ -17,7 +18,7 @@ const LanguagesSection = () => {
       <div className="space-y-2">
         <button onClick={addItem} className="btn btn-secondary btn-sm w-full"><Plus className="w-3.5 h-3.5" /> Add Language</button>
         {items.map((lang, idx) => (
-          <div key={lang._id || idx} className="flex items-center gap-2">
+          <div key={lang._id || lang.tempKey || idx} className="flex items-center gap-2">
             <input type="text" value={lang.language} onChange={(e) => updateItem(idx, 'language', e.target.value)} className="input text-sm flex-1" placeholder="English" />
             <select value={lang.proficiency} onChange={(e) => updateItem(idx, 'proficiency', e.target.value)} className="input text-sm w-44">
               {PROFICIENCY.map((p) => <option key={p} value={p}>{p}</option>)}

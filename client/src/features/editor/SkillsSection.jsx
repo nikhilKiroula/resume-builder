@@ -15,7 +15,8 @@ const SkillsSection = () => {
   const setItems = (v) => updateSection('skills', v);
   const addSkill = () => {
     if (!newSkill.trim()) return;
-    setItems([...items, { name: newSkill.trim(), level: newLevel, category: '', _id: Date.now().toString() }]);
+    // tempKey used only as React key — never sent to DB as _id
+    setItems([...items, { name: newSkill.trim(), level: newLevel, category: '', tempKey: `temp_${Date.now()}_${Math.random().toString(36).slice(2)}` }]);
     setNewSkill('');
   };
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
@@ -45,7 +46,7 @@ const SkillsSection = () => {
         {/* Skills list */}
         <div className="space-y-1.5 max-h-72 overflow-y-auto">
           {items.map((skill, idx) => (
-            <div key={skill._id || idx} className="flex items-center gap-2">
+            <div key={skill._id || skill.tempKey || idx} className="flex items-center gap-2">
               <input
                 type="text"
                 value={skill.name}
