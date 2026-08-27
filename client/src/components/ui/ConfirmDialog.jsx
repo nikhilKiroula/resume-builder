@@ -20,7 +20,7 @@ const ConfirmDialog = ({
           <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
           </div>
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{message}</p>
+          <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{message}</div>
         </div>
 
         <div className="flex gap-3 justify-end pt-2">

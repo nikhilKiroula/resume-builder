@@ -1,9 +1,9 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Save, Eye, Edit2, Download, Share2, Copy,
   CheckCircle, Loader2, Settings, Sparkles, ChevronDown, ChevronUp,
-  Globe, Lock, ExternalLink,
+  Globe, Lock, ExternalLink, ZoomIn, ZoomOut, Maximize2, RotateCcw,
 } from 'lucide-react';
 import useResumeStore from '@/store/resumeStore';
 import useEditorStore from '@/store/editorStore';
@@ -94,6 +94,54 @@ const EditorPage = () => {
   const [isLoadingResume, setIsLoadingResume] = useState(true);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'ats' | 'ai'
+  const [zoom, setZoom] = useState(75); // percentage
+  const [isPinching, setIsPinching] = useState(false);
+
+  const ZOOM_MIN = 40;
+  const ZOOM_MAX = 150;
+  const ZOOM_STEP = 10;
+  const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
+  const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
+  const zoomReset = () => setZoom(75);
+
+  // Keyboard shortcuts: Ctrl+= zoom in, Ctrl+- zoom out, Ctrl+0 reset
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn(); }
+      if (e.key === '-') { e.preventDefault(); zoomOut(); }
+      if (e.key === '0') { e.preventDefault(); zoomReset(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Touchpad pinch-to-zoom on the preview panel
+  // Browsers report pinch as wheel events with ctrlKey:true
+  const previewRef = useRef(null);
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const pinchEndTimer = { id: null };
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return; // only pinch, not normal scroll
+      e.preventDefault(); // stop browser native zoom
+      setIsPinching(true);
+      clearTimeout(pinchEndTimer.id);
+      pinchEndTimer.id = setTimeout(() => setIsPinching(false), 150);
+      // deltaY: negative = pinch-out (zoom in), positive = pinch-in (zoom out)
+      setZoom((z) => {
+        const delta = -e.deltaY * 0.5;
+        return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z + delta)));
+      });
+    };
+    // Must be { passive: false } to call preventDefault()
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      clearTimeout(pinchEndTimer.id);
+    };
+  }, []);
 
   // Load resume on mount
   useEffect(() => {
@@ -321,11 +369,10 @@ const EditorPage = () => {
           <button
             key={tab}
             onClick={() => setMobileView(tab)}
-            className={`flex-1 py-3 text-sm font-medium capitalize flex items-center justify-center gap-2 transition-colors ${
-              mobileView === tab
+            className={`flex-1 py-3 text-sm font-medium capitalize flex items-center justify-center gap-2 transition-colors ${mobileView === tab
                 ? 'text-brand-600 border-b-2 border-brand-600'
                 : 'text-slate-500 dark:text-slate-400'
-            }`}
+              }`}
           >
             {tab === 'edit' ? <Edit2 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             {tab === 'edit' ? 'Edit' : 'Preview'}
@@ -348,11 +395,10 @@ const EditorPage = () => {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-4 py-2.5 text-xs font-medium transition-colors border-b-2 ${
-                  activeTab === key
+                className={`px-4 py-2.5 text-xs font-medium transition-colors border-b-2 ${activeTab === key
                     ? 'text-brand-600 border-brand-600'
                     : 'text-slate-500 border-transparent hover:text-slate-700'
-                }`}
+                  }`}
               >
                 {label}
               </button>
@@ -401,10 +447,68 @@ const EditorPage = () => {
         )}
 
         {/* Right panel: Preview */}
-        <div className={`${mobileView === 'edit' ? 'hidden' : 'flex'} lg:flex flex-1 flex-col bg-slate-200 dark:bg-slate-950 overflow-auto`}>
-          <div className="flex-1 p-4 flex items-start justify-center">
-            <div className="resume-preview-wrapper shadow-xl" style={{ width: '210mm', minWidth: '210mm' }}>
-              <ResumePreview resume={resumeData} />
+        <div className={`${mobileView === 'edit' ? 'hidden' : 'flex'} lg:flex flex-1 flex-col bg-slate-200 dark:bg-slate-950 overflow-hidden`}>
+
+          {/* Zoom toolbar */}
+          <div className="no-print flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Preview</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={zoomOut}
+                disabled={zoom <= ZOOM_MIN}
+                className="btn-ghost p-1.5 rounded-md disabled:opacity-30"
+                title="Zoom out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={zoomReset}
+                className="text-xs font-mono font-semibold text-slate-600 dark:text-slate-300 min-w-[3.5rem] text-center px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Reset zoom"
+              >
+                {zoom}%
+              </button>
+              <button
+                onClick={zoomIn}
+                disabled={zoom >= ZOOM_MAX}
+                className="btn-ghost p-1.5 rounded-md disabled:opacity-30"
+                title="Zoom in"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+              <button
+                onClick={zoomReset}
+                className="btn-ghost p-1.5 rounded-md"
+                title="Fit to screen (75%)"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Resume preview area — outer div controls scroll area, inner scales content */}
+          <div ref={previewRef} className="flex-1 overflow-auto p-6 flex justify-center items-start">
+            <div
+              style={{
+                // The outer div takes up exactly the space the scaled resume needs
+                width: `calc(210mm * ${zoom / 100})`,
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: 'top left',
+                  width: '210mm',
+                  minWidth: '210mm',
+                  transition: isPinching ? 'none' : 'transform 0.15s ease',
+                }}
+              >
+                <div className="shadow-2xl">
+                  <ResumePreview resume={resumeData} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

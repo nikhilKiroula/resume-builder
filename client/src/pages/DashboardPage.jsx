@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Filter, Grid, List, FileText,
@@ -26,11 +27,37 @@ const ResumeSkeleton = () => (
 );
 
 // ─── Resume Card ───────────────────────────────────────────────────────────────
-const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
+const ResumeCard = ({ resume, onDelete, onDuplicate, isDeleting }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef(null);
   const navigate = useNavigate();
   const completion = calculateCompletion(resume);
   const ats = calculateATSScore(resume);
+
+  // Calculate position of dropdown relative to the trigger button
+  const openMenu = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({
+        top: rect.bottom + window.scrollY + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setMenuOpen(true);
+  };
+
+  // Close on scroll/resize
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [menuOpen]);
 
   const templateColors = {
     modern: 'from-blue-500 to-indigo-600',
@@ -43,10 +70,56 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
 
   const gradientClass = templateColors[resume.selectedTemplate] || templateColors.modern;
 
+  // Portal dropdown — renders at document.body to escape any overflow:hidden
+  const DropdownPortal = () => createPortal(
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+      {/* Menu */}
+      <div
+        className="fixed w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 animate-scale-in"
+        style={{ top: menuPos.top, right: menuPos.right }}
+      >
+        <Link
+          to={`/editor/${resume._id}`}
+          className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+          onClick={() => setMenuOpen(false)}
+        >
+          <Edit className="w-3.5 h-3.5" /> Edit
+        </Link>
+        <button
+          onClick={() => { onDuplicate(resume._id); setMenuOpen(false); }}
+          className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+        >
+          <Copy className="w-3.5 h-3.5" /> Duplicate
+        </button>
+        {resume.isPublic && resume.publicSlug && (
+          <a
+            href={`/resume/public/${resume.publicSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+            onClick={() => setMenuOpen(false)}
+          >
+            <Eye className="w-3.5 h-3.5" /> View Public
+          </a>
+        )}
+        <div className="h-px bg-slate-100 dark:bg-slate-700 my-1" />
+        <button
+          onClick={() => { onDelete(resume._id); setMenuOpen(false); }}
+          className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Delete
+        </button>
+      </div>
+    </>,
+    document.body
+  );
+
   return (
-    <div className="card-hover overflow-hidden group relative">
-      {/* Template preview */}
-      <div className={`h-36 bg-gradient-to-br ${gradientClass} relative`}>
+    <div className={`card-hover group relative transition-all duration-300 ${isDeleting ? 'opacity-50 scale-95 pointer-events-none' : ''}`}>
+      {/* Template preview — overflow-hidden here only, NOT on the card */}
+      <div className={`h-36 bg-gradient-to-br ${gradientClass} relative overflow-hidden rounded-t-xl`}>
         <div className="absolute inset-3 flex gap-2">
           <div className="w-1/3 space-y-1.5">
             <div className="h-8 w-8 rounded-full bg-white/30" />
@@ -89,42 +162,18 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
               <p className="text-xs text-slate-500 truncate">{resume.personalInfo.jobTitle}</p>
             )}
           </div>
-          {/* Actions menu */}
+          {/* Actions menu trigger */}
           <div className="relative flex-shrink-0">
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
+              ref={btnRef}
+              onClick={openMenu}
               className="btn-ghost p-1.5 rounded-md"
               aria-label="Resume actions"
+              aria-expanded={menuOpen}
             >
               <MoreVertical className="w-4 h-4" />
             </button>
-            {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-8 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-modal border border-slate-200 dark:border-slate-700 z-20 py-1 animate-scale-in">
-                  <Link to={`/editor/${resume._id}`} className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
-                    onClick={() => setMenuOpen(false)}>
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </Link>
-                  <button onClick={() => { onDuplicate(resume._id); setMenuOpen(false); }}
-                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                    <Copy className="w-3.5 h-3.5" /> Duplicate
-                  </button>
-                  {resume.isPublic && resume.publicSlug && (
-                    <a href={`/resume/public/${resume.publicSlug}`} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300"
-                      onClick={() => setMenuOpen(false)}>
-                      <Eye className="w-3.5 h-3.5" /> View Public
-                    </a>
-                  )}
-                  <div className="divider my-1" />
-                  <button onClick={() => { onDelete(resume._id); setMenuOpen(false); }}
-                    className="flex items-center gap-2.5 w-full px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </>
-            )}
+            {menuOpen && <DropdownPortal />}
           </div>
         </div>
 
@@ -162,12 +211,12 @@ const ResumeCard = ({ resume, onDelete, onDuplicate }) => {
 // ─── Dashboard Page ────────────────────────────────────────────────────────────
 const DashboardPage = () => {
   const { user } = useAuthStore();
-  const { resumes, isLoading, fetchResumes, createResume, isCreating, deleteResume, duplicateResume } = useResumeStore();
+  const { resumes, isLoading, fetchResumes, createResume, isCreating, deleteResume, duplicateResume, isDeleting } = useResumeStore();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('updatedAt');
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, title }
 
   useEffect(() => {
     fetchResumes();
@@ -194,9 +243,9 @@ const DashboardPage = () => {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
-    await deleteResume(deleteId);
-    setDeleteId(null);
+    if (!deleteTarget?.id) return;
+    await deleteResume(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   const greetingHour = new Date().getHours();
@@ -302,8 +351,9 @@ const DashboardPage = () => {
             <ResumeCard
               key={resume._id}
               resume={resume}
-              onDelete={(id) => setDeleteId(id)}
+              onDelete={(id) => setDeleteTarget({ id, title: resume.title })}
               onDuplicate={duplicateResume}
+              isDeleting={isDeleting === resume._id}
             />
           ))}
         </div>
@@ -337,13 +387,19 @@ const DashboardPage = () => {
 
       {/* Delete confirmation */}
       <ConfirmDialog
-        isOpen={!!deleteId}
-        onClose={() => setDeleteId(null)}
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Resume"
-        message="Are you sure you want to delete this resume? This action cannot be undone."
-        confirmLabel="Delete Resume"
-        isLoading={useResumeStore.getState().isDeleting === deleteId}
+        message={
+          <span>
+            Are you sure you want to delete{' '}
+            <strong className="text-slate-900 dark:text-white">"{deleteTarget?.title}"</strong>?
+            {' '}This action cannot be undone.
+          </span>
+        }
+        confirmLabel="Yes, Delete"
+        isLoading={isDeleting === deleteTarget?.id}
       />
     </div>
   );
